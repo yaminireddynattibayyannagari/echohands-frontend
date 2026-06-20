@@ -142,14 +142,6 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
   // Set up MediaPipe Hands and active camera utils
   useEffect(() => {
     if (!cameraActive || !scriptsLoaded) {
-      if (cameraRef.current) {
-        cameraRef.current.stop()
-        cameraRef.current = null
-      }
-      if (handsRef.current) {
-        handsRef.current.close()
-        handsRef.current = null
-      }
       return
     }
 
@@ -247,8 +239,12 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
     // Initialize Camera utils
     const camera = new CameraClass(videoElement, {
       onFrame: async () => {
-        if (handsRef.current) {
-          await handsRef.current.send({ image: videoElement })
+        if (cameraActive && handsRef.current) {
+          try {
+            await handsRef.current.send({ image: videoElement })
+          } catch (err) {
+            console.warn('MediaPipe hands send failed:', err)
+          }
         }
       },
       width: 640,
@@ -265,10 +261,23 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
 
     return () => {
       if (cameraRef.current) {
-        cameraRef.current.stop()
+        try {
+          cameraRef.current.stop()
+        } catch (e) {
+          console.warn('Failed to stop camera:', e)
+        }
+        cameraRef.current = null
       }
-      if (handsRef.current) {
-        handsRef.current.close()
+      
+      const handsInstance = handsRef.current
+      handsRef.current = null
+
+      if (handsInstance) {
+        try {
+          handsInstance.close()
+        } catch (e) {
+          console.warn('Failed to close hands tracker:', e)
+        }
       }
     }
   }, [cameraActive, scriptsLoaded])
