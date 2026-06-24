@@ -125,43 +125,7 @@ const defaultDictionary: Record<string, SignItem> = {
       'how are you'
     ]
   },
-  'what is your name': {
-    label: 'WHAT IS YOUR NAME',
-    description: "Indian Sign Language gesture for asking someone's name.",
-    videoUrl: '/videos/what_is_your_name.mp4',
-    translations: {
-      hindi: 'आपका नाम क्या है?',
-      telugu: 'మీ పేరు ఏమిటి?',
-      tamil: 'உங்கள் பெயர் என்ன?'
-    },
-    transliterations: [
-      'aapka naam kya hai',
-      'aapka nam kya hai',
-      'mee peru emiti',
-      'mee peru enti',
-      'me peru emiti',
-      'ungal peyar enna'
-    ]
-  },
-  'where are you going': {
-    label: 'WHERE ARE YOU GOING',
-    description: 'Indian Sign Language gesture for asking where someone is going.',
-    videoUrl: '/videos/where_are_you_going.mp4',
-    translations: {
-      hindi: 'आप कहाँ जा रहे हैं?',
-      telugu: 'మీరు ఎక్కడికి వెళ్తున్నారు?',
-      tamil: 'நீங்கள் எங்கே போகிறீர்கள்?'
-    },
-    transliterations: [
-      'आप कहाँ जा रहे हैं',
-      'aap kaha ja rahe ho',
-      'aap kahaan ja rahe hain',
-      'meeru ekkadiki velthunnaaru',
-      'ekkadiki velthunnaru',
-      'neengal enge pogireergal',
-      'enge pogiringal'
-    ]
-  },
+
   'hello': {
     label: 'HELLO',
     description: 'Waving open hand gesture with fingers spread out.',
@@ -519,8 +483,7 @@ export const SpeakToSign: React.FC = () => {
         'धन्यवाद',
         'ధన్యవాదాలు',
         'நன்றி',
-        'what is your name',
-        'where are you going',
+
         'hello',
         'yes',
         'no',
@@ -747,7 +710,7 @@ export const SpeakToSign: React.FC = () => {
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder="Type words here (e.g. hello, what is your name)"
+                placeholder="Type words here (e.g. hello, thank you)"
                 className="flex-1 bg-slate-950/80 border border-slate-850 hover:border-slate-800 focus:border-purple-500/50 focus:bg-slate-950 rounded-2xl px-4 py-3 text-xs text-slate-200 placeholder:text-slate-650 focus:outline-none transition-all shadow-inner"
               />
               <button
