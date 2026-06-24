@@ -34,27 +34,6 @@ interface SpeechRecognitionErrorEvent {
 
 // Dictionary of known words/sentences mapped to custom ISL gestures
 const defaultDictionary: Record<string, SignItem> = {
-  'hello everyone': {
-    label: 'HELLO EVERYONE',
-    description: 'Indian Sign Language gesture for greeting everyone (Namaste).',
-    videoUrl: '/videos/hello_everyone.mp4',
-    translations: {
-      hindi: 'सभी को नमस्कार',
-      telugu: 'అందరికీ నమస్కారం',
-      tamil: 'அனைவருக்கும் வணக்கம்'
-    },
-    transliterations: [
-      'sabhi ko namaskar',
-      'namaste sabhi ko',
-      'sabhiko namaskar',
-      'namaste sabhiko',
-      'namaskar',
-      'namaste',
-      'andariki namaskaram',
-      'andariki namaskaraalu',
-      'anaivarukkum vanakkam'
-    ]
-  },
   'had your lunch': {
     label: 'HAD YOUR LUNCH',
     description: 'Indian Sign Language gesture for asking if someone has eaten lunch.',
@@ -125,7 +104,6 @@ const defaultDictionary: Record<string, SignItem> = {
       'how are you'
     ]
   },
-
   'hello': {
     label: 'HELLO',
     description: 'Waving open hand gesture with fingers spread out.',
@@ -142,67 +120,13 @@ const defaultDictionary: Record<string, SignItem> = {
       'namaskaram',
       'hello'
     ]
-  },
-  'yes': {
-    label: 'YES',
-    description: 'Closed fist tilting forward and backward, nodding.',
-    videoUrl: '/videos/yes.mp4',
-    translations: {
-      hindi: 'हाँ',
-      telugu: 'అవును',
-      tamil: 'ஆம்'
-    },
-    transliterations: [
-      'haan',
-      'ha',
-      'avunu',
-      'ama',
-      'am',
-      'yes'
-    ]
-  },
-  'no': {
-    label: 'NO',
-    description: 'Extended index and middle finger snap down onto the thumb.',
-    videoUrl: '/videos/no.mp4',
-    translations: {
-      hindi: 'नहीं',
-      telugu: 'వద్దు / కాదు',
-      tamil: 'இல்லை'
-    },
-    transliterations: [
-      'nahi',
-      'nahi ho',
-      'naa',
-      'vaddu',
-      'kaadu',
-      'illai',
-      'no'
-    ]
-  },
-  'stop': {
-    label: 'STOP',
-    description: 'Flat open palm extended outward, fingers vertical.',
-    videoUrl: '/videos/stop.mp4',
-    translations: {
-      hindi: 'रुकिए',
-      telugu: 'ఆగండి',
-      tamil: 'நில்லுங்கள்'
-    },
-    transliterations: [
-      'ruko',
-      'rukiye',
-      'aagandi',
-      'nillungal',
-      'stop'
-    ]
   }
 }
 
 export const SpeakToSign: React.FC = () => {
   const [micActive, setMicActive] = useState<boolean>(false)
   const [inputText, setInputText] = useState<string>('')
-  const [recognizedText, setRecognizedText] = useState<string>('hello everyone')
+  const [recognizedText, setRecognizedText] = useState<string>('hello')
   const [isPlaying, setIsPlaying] = useState<boolean>(true)
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0)
 
@@ -277,9 +201,9 @@ export const SpeakToSign: React.FC = () => {
 
       if (item.transliterations) {
         if (item.transliterations.some(t => getNormalizedKey(t) === normalizedInput)) {
-          const hindiWords = ['namaste', 'namaskar', 'sabhi', 'ko', 'kya', 'aapne', 'dopahar', 'bhojan', 'kiya', 'khana', 'kha', 'liya', 'khaliya', 'dhanyavaad', 'dhanyavad', 'shukriya', 'aapka', 'naam', 'kya', 'hai', 'aap', 'kaha', 'ja', 'rahe', 'ho', 'kahaan', 'hain', 'haan', 'ha', 'nahi', 'ruko', 'rukiye', 'kaise']
-          const teluguWords = ['andariki', 'namaskaram', 'namaskaraalu', 'meeru', 'bhojanam', 'chesaara', 'chesara', 'thinnava', 'tinnaara', 'dhanyavadalu', 'peru', 'emiti', 'enti', 'ekkadiki', 'velthunnaaru', 'velthunnaru', 'avunu', 'naa', 'vaddu', 'kaadu', 'aagandi', 'ela', 'unnaru', 'unnaaru']
-          const tamilWords = ['anaivarukkum', 'vanakkam', 'sappittirgala', 'saapiteergala', 'nandri', 'ungal', 'peyar', 'enna', 'neengal', 'enge', 'pogireergal', 'pogiringal', 'ama', 'am', 'illai', 'nillungal', 'eppadi', 'irukkireergal', 'irukkingal']
+          const hindiWords = ['namaste', 'namaskar', 'kya', 'aapne', 'dopahar', 'bhojan', 'kiya', 'khana', 'kha', 'liya', 'khaliya', 'dhanyavaad', 'dhanyavad', 'shukriya', 'aap', 'kaise', 'ho', 'hain']
+          const teluguWords = ['namaskaram', 'meeru', 'bhojanam', 'chesaara', 'chesara', 'thinnava', 'tinnaara', 'dhanyavadalu', 'ela', 'unnaru', 'unnaaru']
+          const tamilWords = ['vanakkam', 'sappittirgala', 'saapiteergala', 'nandri', 'neengal', 'eppadi', 'irukkireergal', 'irukkingal']
           
           const inputWords = normalizedInput.split(' ')
           const hiCount = inputWords.filter(w => hindiWords.includes(w)).length
@@ -471,10 +395,6 @@ export const SpeakToSign: React.FC = () => {
       setIsListening(true)
       setMicActive(true)
       const demoPhrases = [
-        'hello everyone',
-        'सभी को नमस्कार',
-        'అందరికీ నమస్కారం',
-        'அனைவருக்கும் வணக்கம்',
         'had your lunch',
         'क्या आपने दोपहर का भोजन किया?',
         'మీరు భోజనం చేశారా?',
@@ -483,11 +403,7 @@ export const SpeakToSign: React.FC = () => {
         'धन्यवाद',
         'ధన్యవాదాలు',
         'நன்றி',
-
         'hello',
-        'yes',
-        'no',
-        'stop',
         'how are you',
         'आप कैसे हैं?',
         'మీరు ఎలా ఉన్నారు?',
