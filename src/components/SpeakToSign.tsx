@@ -76,7 +76,10 @@ const defaultDictionary: Record<string, SignItem> = {
       'sappittirgala',
       'saapiteergala',
       'lunch thinnava',
-      'lunch tinnaara'
+      'lunch tinnaara',
+      'had you lounch',
+      'had you lunch',
+      'had your lounch'
     ]
   },
   'thank you': {
@@ -94,7 +97,32 @@ const defaultDictionary: Record<string, SignItem> = {
       'shukriya',
       'dhanyavadalu',
       'nandri',
-      'nandri hal'
+      'nandri hal',
+      'thankyou'
+    ]
+  },
+  'how are you': {
+    label: 'HOW ARE YOU',
+    description: 'Indian Sign Language gesture for asking how someone is.',
+    videoUrl: '/videos/how_are_you.mp4',
+    translations: {
+      hindi: 'आप कैसे हैं?',
+      telugu: 'మీరు ఎలా ఉన్నారు?',
+      tamil: 'நீங்கள் எப்படி இருக்கிறீர்கள்?'
+    },
+    transliterations: [
+      'aap kaise ho',
+      'aap kaise hain',
+      'kaise ho',
+      'kaise hain',
+      'meeru ela unnaaru',
+      'meeru ela unnaru',
+      'ela unnaaru',
+      'ela unnaru',
+      'neengal eppadi irukkireergal',
+      'eppadi irukkireergal',
+      'eppadi irukkingal',
+      'how are you'
     ]
   },
   'what is your name': {
@@ -285,9 +313,9 @@ export const SpeakToSign: React.FC = () => {
 
       if (item.transliterations) {
         if (item.transliterations.some(t => getNormalizedKey(t) === normalizedInput)) {
-          const hindiWords = ['namaste', 'namaskar', 'sabhi', 'ko', 'kya', 'aapne', 'dopahar', 'bhojan', 'kiya', 'khana', 'kha', 'liya', 'khaliya', 'dhanyavaad', 'dhanyavad', 'shukriya', 'aapka', 'naam', 'kya', 'hai', 'aap', 'kaha', 'ja', 'rahe', 'ho', 'kahaan', 'hain', 'haan', 'ha', 'nahi', 'ruko', 'rukiye']
-          const teluguWords = ['andariki', 'namaskaram', 'namaskaraalu', 'meeru', 'bhojanam', 'chesaara', 'chesara', 'thinnava', 'tinnaara', 'dhanyavadalu', 'peru', 'emiti', 'enti', 'ekkadiki', 'velthunnaaru', 'velthunnaru', 'avunu', 'naa', 'vaddu', 'kaadu', 'aagandi']
-          const tamilWords = ['anaivarukkum', 'vanakkam', 'sappittirgala', 'saapiteergala', 'nandri', 'ungal', 'peyar', 'enna', 'neengal', 'enge', 'pogireergal', 'pogiringal', 'ama', 'am', 'illai', 'nillungal']
+          const hindiWords = ['namaste', 'namaskar', 'sabhi', 'ko', 'kya', 'aapne', 'dopahar', 'bhojan', 'kiya', 'khana', 'kha', 'liya', 'khaliya', 'dhanyavaad', 'dhanyavad', 'shukriya', 'aapka', 'naam', 'kya', 'hai', 'aap', 'kaha', 'ja', 'rahe', 'ho', 'kahaan', 'hain', 'haan', 'ha', 'nahi', 'ruko', 'rukiye', 'kaise']
+          const teluguWords = ['andariki', 'namaskaram', 'namaskaraalu', 'meeru', 'bhojanam', 'chesaara', 'chesara', 'thinnava', 'tinnaara', 'dhanyavadalu', 'peru', 'emiti', 'enti', 'ekkadiki', 'velthunnaaru', 'velthunnaru', 'avunu', 'naa', 'vaddu', 'kaadu', 'aagandi', 'ela', 'unnaru', 'unnaaru']
+          const tamilWords = ['anaivarukkum', 'vanakkam', 'sappittirgala', 'saapiteergala', 'nandri', 'ungal', 'peyar', 'enna', 'neengal', 'enge', 'pogireergal', 'pogiringal', 'ama', 'am', 'illai', 'nillungal', 'eppadi', 'irukkireergal', 'irukkingal']
           
           const inputWords = normalizedInput.split(' ')
           const hiCount = inputWords.filter(w => hindiWords.includes(w)).length
@@ -496,7 +524,11 @@ export const SpeakToSign: React.FC = () => {
         'hello',
         'yes',
         'no',
-        'stop'
+        'stop',
+        'how are you',
+        'आप कैसे हैं?',
+        'మీరు ఎలా ఉన్నారు?',
+        'நீங்கள் எப்படி இருக்கிறீர்கள்?'
       ]
       setTimeout(() => {
         const randomPhrase = demoPhrases[Math.floor(Math.random() * demoPhrases.length)]

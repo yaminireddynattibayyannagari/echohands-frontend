@@ -9,5 +9,7 @@ Place your video files (MP4 format) in this directory with the following exact f
 7. yes.mp4           (for "yes")
 8. no.mp4            (for "no")
 9. stop.mp4          (for "stop")
+10. how_are_you.mp4   (for "how are you")
+
 
 Once placed here, the application will automatically load them!
