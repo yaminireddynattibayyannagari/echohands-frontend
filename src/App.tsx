@@ -126,7 +126,7 @@ function App() {
               </div>
             ) : (
               <div className="animate-in fade-in slide-in-from-bottom-6 duration-500">
-                <SpeakToSign />
+                <SpeakToSign speakText={speakText} />
               </div>
             )}
           </div>

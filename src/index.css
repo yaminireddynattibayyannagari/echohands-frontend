@@ -51,3 +51,16 @@
   animation: pulseGlow 6s ease-in-out infinite;
 }
 
+@keyframes progressShrink {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+@utility animate-progress-shrink {
+  animation: progressShrink linear forwards;
+}
+

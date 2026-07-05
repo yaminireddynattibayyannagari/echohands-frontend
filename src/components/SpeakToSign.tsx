@@ -123,7 +123,11 @@ const defaultDictionary: Record<string, SignItem> = {
   }
 }
 
-export const SpeakToSign: React.FC = () => {
+interface SpeakToSignProps {
+  speakText?: (text: string, lang?: string, fallbackPhonetic?: string) => void
+}
+
+export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
   const [micActive, setMicActive] = useState<boolean>(false)
   const [inputText, setInputText] = useState<string>('')
   const [recognizedText, setRecognizedText] = useState<string>('hello')
@@ -153,6 +157,7 @@ export const SpeakToSign: React.FC = () => {
 
   // Customizer panel active state
   const [showCustomizer, setShowCustomizer] = useState<boolean>(false)
+  const [searchQuery, setSearchQuery] = useState<string>('')
 
   // Ref for the output video element
   const videoPlayerRef = useRef<HTMLVideoElement | null>(null)
@@ -165,6 +170,28 @@ export const SpeakToSign: React.FC = () => {
       return `${base.replace(/\/$/, '')}${rawUrl}`
     }
     return rawUrl
+  }
+
+  // Get currently displayed subtitle text
+  const getSubText = () => {
+    if (playlist.length === 0) return ''
+    const item = playlist[activeWordIndex]
+    if (!item) return ''
+    const match = defaultDictionary[item]
+    if (!match) return item
+    if (selectedLanguage === 'english') return match.label
+    return match.translations?.[selectedLanguage] || match.label
+  }
+
+  // Speak the translated subtitle aloud
+  const handleSpeakSubtitle = () => {
+    if (!speakText) return
+    const textToSpeak = getSubText()
+    let langCode = 'en-US'
+    if (selectedLanguage === 'hindi') langCode = 'hi-IN'
+    else if (selectedLanguage === 'telugu') langCode = 'te-IN'
+    else if (selectedLanguage === 'tamil') langCode = 'ta-IN'
+    speakText(textToSpeak, langCode)
   }
 
   // Normalize string for dictionary key checking
@@ -238,16 +265,16 @@ export const SpeakToSign: React.FC = () => {
     }
   }
 
-  // Determine playable list (prioritize full sentence matches, fallback to split words)
-  const getPlayableList = () => {
-    const normalizedInput = getNormalizedKey(recognizedText)
+  // Determine active playlist of any text (helper)
+  const getPlayableListForText = (text: string) => {
+    const normalizedInput = getNormalizedKey(text)
     
     // 1. Direct match with English keys
     if (normalizedInput in defaultDictionary) {
       return [normalizedInput]
     }
     
-    // 2. Scan translations & transliterations to see if the input matches any Hindi, Telugu, or Tamil translations or transliterations
+    // 2. Scan translations & transliterations
     for (const [englishKey, item] of Object.entries(defaultDictionary)) {
       if (item.translations) {
         for (const langText of Object.values(item.translations)) {
@@ -265,8 +292,35 @@ export const SpeakToSign: React.FC = () => {
       }
     }
     
-    // 3. Fallback: split by space and translate word-by-word
-    return recognizedText.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    // 3. Fallback: split by space
+    return text.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  }
+
+  // Determine playable list (prioritize full sentence matches, fallback to split words)
+  const getPlayableList = () => {
+    return getPlayableListForText(recognizedText)
+  }
+
+  // Handle live incremental transcription results continuously
+  const handleLiveTranscript = (newText: string) => {
+    detectLanguageAndSet(newText)
+
+    // Calculate playlists
+    const currentPlaylist = getPlayableListForText(recognizedText)
+    const newPlaylist = getPlayableListForText(newText)
+
+    // Check if new playlist starts with current playlist items (continuation)
+    const isContinuation = currentPlaylist.length > 0 &&
+      currentPlaylist.every((word, idx) => newPlaylist[idx] === word)
+
+    if (!isContinuation) {
+      // If it's a completely new translation sequence, reset indices
+      setActiveWordIndex(0)
+      setSpellingIndex(0)
+    }
+
+    setRecognizedText(newText)
+    setIsPlaying(true)
   }
 
   const playlist = getPlayableList()
@@ -394,34 +448,36 @@ export const SpeakToSign: React.FC = () => {
     if (!SpeechRecognition) {
       setIsListening(true)
       setMicActive(true)
+      
       const demoPhrases = [
-        'had your lunch',
-        'क्या आपने दोपहर का भोजन किया?',
-        'మీరు భోజనం చేశారా?',
-        'மதிய உணவு சாப்பிட்டீர்களா?',
-        'thank you',
-        'धन्यवाद',
-        'ధన్యవాదాలు',
-        'நன்றி',
-        'hello',
-        'how are you',
-        'आप कैसे हैं?',
-        'మీరు ఎలా ఉన్నారు?',
-        'நீங்கள் எப்படி இருக்கிறீர்கள்?'
+        'hello how are you thank you',
+        'hello had your lunch thank you',
+        'namaste kaise ho dhanyavaad',
+        'vanakkam saapiteergala nandri'
       ]
-      setTimeout(() => {
-        const randomPhrase = demoPhrases[Math.floor(Math.random() * demoPhrases.length)]
-        detectLanguageAndSet(randomPhrase)
-        
-        // Reset playback stats synchronously
-        setActiveWordIndex(0)
-        setSpellingIndex(0)
-        setRecognizedText(randomPhrase)
-        
-        setIsListening(false)
-        setMicActive(false)
-        setIsPlaying(true)
-      }, 2500)
+      
+      const randomPhrase = demoPhrases[Math.floor(Math.random() * demoPhrases.length)]
+      const words = randomPhrase.split(' ')
+      let currentPhrase = ''
+      let wordIndex = 0
+
+      // Reset playback indices for new session
+      setActiveWordIndex(0)
+      setSpellingIndex(0)
+      setRecognizedText('')
+
+      const interval = setInterval(() => {
+        if (wordIndex < words.length) {
+          currentPhrase = (currentPhrase + ' ' + words[wordIndex]).trim()
+          handleLiveTranscript(currentPhrase)
+          wordIndex++
+        } else {
+          clearInterval(interval)
+          setIsListening(false)
+          setMicActive(false)
+        }
+      }, 800)
+      
       return
     }
 
@@ -437,8 +493,8 @@ export const SpeakToSign: React.FC = () => {
     }
 
     const recognition = new SpeechRecognitionClass()
-    recognition.continuous = false
-    recognition.interimResults = false
+    recognition.continuous = true
+    recognition.interimResults = true
 
     if (selectedLanguage === 'hindi') {
       recognition.lang = 'hi-IN'
@@ -453,6 +509,10 @@ export const SpeakToSign: React.FC = () => {
     recognition.onstart = () => {
       setIsListening(true)
       setMicActive(true)
+      // Reset playback indices for new session
+      setActiveWordIndex(0)
+      setSpellingIndex(0)
+      setRecognizedText('')
     }
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -466,14 +526,21 @@ export const SpeakToSign: React.FC = () => {
       setMicActive(false)
     }
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = event.results[0][0].transcript
-      if (transcript) {
-        detectLanguageAndSet(transcript)
-        setActiveWordIndex(0)
-        setSpellingIndex(0)
-        setRecognizedText(transcript)
-        setIsPlaying(true)
+    recognition.onresult = (event: any) => {
+      let finalTranscript = ''
+      let interimTranscript = ''
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript
+        } else {
+          interimTranscript += event.results[i][0].transcript
+        }
+      }
+
+      const fullTranscript = (finalTranscript || interimTranscript).trim()
+      if (fullTranscript) {
+        handleLiveTranscript(fullTranscript)
       }
     }
 
@@ -554,16 +621,45 @@ export const SpeakToSign: React.FC = () => {
       const currentWord = playlist[activeWordIndex]
       const letter = currentWord?.[spellingIndex]?.toUpperCase()
       return (
-        <div className="flex flex-col items-center justify-center p-4 text-center animate-in fade-in duration-300">
-          <div className="h-28 w-28 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center relative overflow-hidden group shadow-lg shadow-purple-550/5">
+        <div className="flex flex-col items-center justify-center p-4 text-center animate-in fade-in duration-300 w-full">
+          <div className="h-28 w-28 rounded-2xl bg-purple-500/10 border border-purple-500/35 flex items-center justify-center relative overflow-hidden group shadow-lg shadow-purple-500/10 mb-4">
             <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(168,85,247,0.02)_1px,transparent_1px)] bg-[size:100%_4px]" />
-            <span className="text-5xl font-extrabold text-purple-400 font-mono tracking-tighter animate-pulse">
+            <span className="text-5xl font-extrabold text-purple-400 font-mono tracking-tighter">
               {letter}
             </span>
+            {isPlaying && (
+              <div 
+                key={letter + "_" + spellingIndex}
+                className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-purple-500 to-indigo-500 animate-progress-shrink"
+                style={{ animationDuration: `${1000 / playbackSpeed}ms` }}
+              />
+            )}
           </div>
-          <h3 className="text-white font-extrabold text-base mt-4 uppercase tracking-wider">SPELLING: "{currentWord?.toUpperCase()}"</h3>
-          <p className="text-xs text-slate-400 mt-1.5 max-w-[280px] leading-relaxed">
-            Spelling letter <strong className="text-purple-400 font-mono text-sm font-bold">"{letter}"</strong> sequentially (word not in dictionary).
+          <h3 className="text-white font-extrabold text-base uppercase tracking-wider">SPELLING: "{currentWord?.toUpperCase()}"</h3>
+          
+          {/* Active letter queue grid */}
+          <div className="flex items-center gap-1.5 mt-4.5 justify-center flex-wrap max-w-sm">
+            {currentWord.split('').map((char, index) => {
+              const isCharActive = index === spellingIndex;
+              const isCharPast = index < spellingIndex;
+              return (
+                <span
+                  key={index}
+                  className={`h-7 w-7 rounded-lg flex items-center justify-center font-mono text-[11px] font-bold transition-all border ${
+                    isCharActive
+                      ? 'bg-purple-600/30 text-white border-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.25)] scale-110'
+                      : isCharPast
+                        ? 'bg-slate-900/60 text-slate-650 border-slate-950/80'
+                        : 'bg-slate-950/40 text-slate-450 border-slate-900'
+                  }`}
+                >
+                  {char.toUpperCase()}
+                </span>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-slate-500 mt-3.5 max-w-[285px] leading-relaxed">
+            Spelling letter <strong className="text-purple-400 font-mono text-[11px] font-bold">"{letter}"</strong> sequentially (word not in dictionary).
           </p>
         </div>
       )
@@ -571,8 +667,9 @@ export const SpeakToSign: React.FC = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full font-sans">
-      {/* Left panel: Mic listener & text inputs */}
+    <div className="flex flex-col gap-8 w-full font-sans">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full">
+        {/* Left panel: Mic listener & text inputs */}
       <div className="lg:col-span-6 flex flex-col gap-6">
         <div className="bg-slate-900/40 border border-slate-850/80 rounded-3xl p-6 backdrop-blur-md shadow-xl flex flex-col gap-6 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl group-hover:bg-indigo-500/10 transition-colors duration-500 pointer-events-none"></div>
@@ -661,20 +758,29 @@ export const SpeakToSign: React.FC = () => {
 
             {renderSignOutput()}
 
-            {/* Subtitle translations */}
+            {/* Subtitle translations with TTS option */}
             {playlist.length > 0 && !isSpellingMode && (
-              <div className="mt-4 px-4 py-2.5 bg-slate-900/50 border border-slate-850 rounded-2xl w-full max-w-[380px] text-center flex flex-col gap-1 items-center animate-in fade-in duration-200 shadow-sm">
-                <span className="text-[9px] text-purple-400 uppercase tracking-widest font-bold font-mono">
-                  {selectedLanguage === 'english' ? 'English Text' : `${selectedLanguage.toUpperCase()} Translation`}
-                </span>
-                <span className="text-sm font-bold text-white tracking-wide">
-                  {playlist[activeWordIndex] && defaultDictionary[playlist[activeWordIndex]]?.translations
-                    ? (selectedLanguage === 'english'
-                      ? defaultDictionary[playlist[activeWordIndex]].label
-                      : defaultDictionary[playlist[activeWordIndex]].translations?.[selectedLanguage] || defaultDictionary[playlist[activeWordIndex]].label)
-                    : playlist[activeWordIndex]?.toUpperCase()
-                  }
-                </span>
+              <div className="mt-4 px-5 py-3 bg-slate-900/50 border border-slate-850 rounded-2xl w-full max-w-[380px] flex items-center justify-between gap-4 animate-in fade-in duration-200 shadow-sm relative group/sub">
+                <div className="flex flex-col gap-0.5 text-left flex-1">
+                  <span className="text-[9px] text-purple-400 uppercase tracking-widest font-bold font-mono">
+                    {selectedLanguage === 'english' ? 'English Text' : `${selectedLanguage.toUpperCase()} Translation`}
+                  </span>
+                  <span className="text-sm font-bold text-white tracking-wide">
+                    {getSubText()}
+                  </span>
+                </div>
+                {speakText && (
+                  <button
+                    type="button"
+                    onClick={handleSpeakSubtitle}
+                    className="h-8.5 w-8.5 rounded-xl bg-purple-500/10 text-purple-400 hover:bg-purple-650 hover:text-white border border-purple-500/20 hover:border-transparent flex items-center justify-center transition-all duration-200 shadow-sm cursor-pointer hover:scale-105"
+                    title="Speak Translation"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    </svg>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -898,6 +1004,139 @@ export const SpeakToSign: React.FC = () => {
 
           </div>
 
+        </div>
+      </div>
+    </div>
+
+    {/* Interactive Dictionary Browser */}
+      <div className="bg-slate-900/40 border border-slate-850/80 rounded-3xl p-6 backdrop-blur-md shadow-xl flex flex-col gap-5 relative overflow-hidden group">
+        {/* Decorative Glow */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-2xl group-hover:bg-purple-500/10 transition-colors duration-500 pointer-events-none"></div>
+        
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-900/60 pb-4 z-10 relative">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+              <svg className="h-4.5 w-4.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              ISL Interactive Vocabulary Dictionary
+            </h3>
+            <p className="text-[10px] text-slate-500 mt-1">Search and click any vocabulary item to translate and render its sign gesture video immediately.</p>
+          </div>
+
+          <div className="relative max-w-xs w-full">
+            <input
+              type="text"
+              placeholder="Search dictionary..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-955/80 border border-slate-850 hover:border-slate-800 focus:border-purple-500/50 focus:bg-slate-955 rounded-xl pl-9.5 pr-4 py-2 text-xs text-slate-200 placeholder:text-slate-650 focus:outline-none transition-all shadow-inner"
+            />
+            <svg className="absolute left-3 top-2.5 h-4 w-4 text-slate-550 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300 text-xs font-bold font-sans cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 z-10 relative">
+          {Object.entries(defaultDictionary)
+            .filter(([key, item]) => {
+              const query = searchQuery.trim().toLowerCase()
+              if (!query) return true
+              if (key.includes(query)) return true
+              if (item.description.toLowerCase().includes(query)) return true
+              if (item.translations) {
+                if (item.translations.hindi.includes(query)) return true
+                if (item.translations.telugu.includes(query)) return true
+                if (item.translations.tamil.includes(query)) return true
+              }
+              if (item.transliterations) {
+                if (item.transliterations.some(t => t.toLowerCase().includes(query))) return true
+              }
+              return false
+            })
+            .length === 0 ? (
+              <div className="col-span-full py-12 text-center">
+                <span className="text-xs text-slate-600 font-medium">No dictionary entries matched "{searchQuery}"</span>
+              </div>
+            ) : (
+              Object.entries(defaultDictionary)
+                .filter(([key, item]) => {
+                  const query = searchQuery.trim().toLowerCase()
+                  if (!query) return true
+                  if (key.includes(query)) return true
+                  if (item.description.toLowerCase().includes(query)) return true
+                  if (item.translations) {
+                    if (item.translations.hindi.includes(query)) return true
+                    if (item.translations.telugu.includes(query)) return true
+                    if (item.translations.tamil.includes(query)) return true
+                  }
+                  if (item.transliterations) {
+                    if (item.transliterations.some(t => t.toLowerCase().includes(query))) return true
+                  }
+                  return false
+                })
+                .map(([key, item]) => {
+                  const isCurrentlyPlaying = playlist.length === 1 && playlist[0] === key && isPlaying && !isSpellingMode;
+                  return (
+                    <div
+                      key={key}
+                      onClick={() => {
+                        detectLanguageAndSet(key)
+                        setActiveWordIndex(0)
+                        setSpellingIndex(0)
+                        setRecognizedText(key)
+                        setIsPlaying(true)
+                        const screen = document.querySelector('.group\\/screen')
+                        if (screen) {
+                          screen.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                        }
+                      }}
+                      className={`p-4 rounded-2xl border transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[140px] text-left select-none relative group/dictcard ${
+                        isCurrentlyPlaying
+                          ? 'bg-purple-650/15 border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
+                          : 'bg-slate-950/40 border-slate-855/40 hover:border-slate-800 hover:bg-slate-950/80 hover:shadow-lg'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className={`text-[11px] font-bold tracking-wide uppercase ${isCurrentlyPlaying ? 'text-purple-400 font-extrabold' : 'text-slate-205'}`}>
+                            {item.label}
+                          </span>
+                          {isCurrentlyPlaying && (
+                            <span className="flex h-2 w-2 relative">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-normal line-clamp-2 mb-3">
+                          {item.description}
+                        </p>
+                      </div>
+
+                      <div className="border-t border-slate-900/60 pt-3 mt-auto flex flex-col gap-1.5">
+                        {item.translations && (
+                          <div className="flex items-center gap-1 flex-wrap text-[9px] font-semibold text-slate-500">
+                            <span className="bg-slate-950/60 px-1.5 py-0.5 rounded border border-slate-900">HN: {item.translations.hindi}</span>
+                            <span className="bg-slate-950/60 px-1.5 py-0.5 rounded border border-slate-900">TL: {item.translations.telugu}</span>
+                            <span className="bg-slate-950/60 px-1.5 py-0.5 rounded border border-slate-900">TM: {item.translations.tamil}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })
+            )}
         </div>
       </div>
     </div>

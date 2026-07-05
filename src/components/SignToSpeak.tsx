@@ -185,6 +185,7 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
   const [fps, setFps] = useState<number>(30)
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [cameraError, setCameraError] = useState<string | null>(null)
+  const [isMirrored, setIsMirrored] = useState<boolean>(true)
   
   // Selected translation language
   const [selectedLanguage, setSelectedLanguage] = useState<'english' | 'hindi' | 'telugu' | 'tamil'>('english')
@@ -305,13 +306,35 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
     }
   }, [detectedText, getTranslationInfo, speakText])
 
-  // Simple hand gesture classification heuristic based on landmark distances
+  // Rotation-invariant and scale-invariant hand gesture classification heuristic
   const classifyGesture = (landmarks: Array<{ x: number; y: number; z: number }>): { word: string; conf: number } => {
-    const isIndexExtended = landmarks[8].y < landmarks[6].y
-    const isMiddleExtended = landmarks[12].y < landmarks[10].y
-    const isRingExtended = landmarks[16].y < landmarks[14].y
-    const isPinkyExtended = landmarks[20].y < landmarks[18].y
-    const isThumbExtended = Math.abs(landmarks[4].x - landmarks[2].x) > 0.05
+    const getDistance = (p1: { x: number; y: number; z: number }, p2: { x: number; y: number; z: number }) => {
+      return Math.sqrt(
+        Math.pow(p1.x - p2.x, 2) +
+        Math.pow(p1.y - p2.y, 2) +
+        Math.pow(p1.z - p2.z, 2)
+      )
+    }
+
+    const wrist = landmarks[0]
+    const middleMCP = landmarks[9]
+    // Hand size proxy is the distance from wrist to middle finger knuckle
+    const handSize = getDistance(wrist, middleMCP) || 0.1
+
+    // Normalize tip distances by hand size
+    const indexTipDist = getDistance(wrist, landmarks[8]) / handSize
+    const middleTipDist = getDistance(wrist, landmarks[12]) / handSize
+    const ringTipDist = getDistance(wrist, landmarks[16]) / handSize
+    const pinkyTipDist = getDistance(wrist, landmarks[20]) / handSize
+    // Thumb distance from middle knuckle is a robust indicator of extension
+    const thumbTipDist = getDistance(landmarks[4], middleMCP) / handSize
+
+    // Determine extension status
+    const isIndexExtended = indexTipDist > 1.25
+    const isMiddleExtended = middleTipDist > 1.25
+    const isRingExtended = ringTipDist > 1.25
+    const isPinkyExtended = pinkyTipDist > 1.05
+    const isThumbExtended = thumbTipDist > 0.78
 
     // 1. Open Palm -> Hello
     if (isIndexExtended && isMiddleExtended && isRingExtended && isPinkyExtended) {
@@ -540,7 +563,7 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
                   ref={canvasRef} 
                   width={640} 
                   height={360} 
-                  className="w-full h-full object-cover rounded-2xl transform scale-x-[-1]"
+                  className={`w-full h-full object-cover rounded-2xl transition-transform duration-300 ${isMirrored ? 'transform scale-x-[-1]' : ''}`}
                 />
                 
                 {/* Hand Silhouette Guide when Idle/No hand detected */}
@@ -588,34 +611,53 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
             )}
           </div>
 
-          {/* Action button */}
-          <div className="flex items-center gap-4 mt-6 z-10">
+          {/* Action buttons */}
+          <div className="flex items-center gap-3 mt-6 z-10 w-full">
             <button
               type="button"
               onClick={() => setCameraActive(!cameraActive)}
               disabled={!scriptsLoaded}
-              className={`w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all duration-300 cursor-pointer disabled:opacity-50 ${
+              className={`flex-1 flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all duration-300 cursor-pointer disabled:opacity-50 ${
                 cameraActive 
-                  ? 'bg-rose-550/15 text-rose-455 border border-rose-500/25 hover:bg-rose-500/20 hover:border-rose-500/40' 
-                  : 'bg-gradient-to-r from-purple-600 to-indigo-650 text-white shadow-lg shadow-purple-655/15 hover:shadow-purple-500/30 hover:scale-[1.01] hover:-translate-y-0.5'
+                  ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 hover:border-rose-500/35' 
+                  : 'bg-gradient-to-r from-purple-600 to-indigo-650 text-white shadow-lg shadow-purple-600/15 hover:shadow-purple-500/25 hover:scale-[1.01]'
               }`}
             >
               {cameraActive ? (
                 <>
-                  <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                  Stop Translation Feed
+                  Stop Feed
                 </>
               ) : (
                 <>
-                  <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
                   Start Translation Feed
                 </>
               )}
             </button>
+
+            {cameraActive && (
+              <button
+                type="button"
+                onClick={() => setIsMirrored(!isMirrored)}
+                className={`px-4.5 py-3.5 rounded-2xl border text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all duration-300 cursor-pointer ${
+                  isMirrored
+                    ? 'bg-purple-500/10 text-purple-400 border-purple-500/20 hover:bg-purple-500/20'
+                    : 'bg-slate-950 border-slate-850 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                }`}
+                title="Toggle camera mirror mirroring"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 10.742l4.636-4.636a1 1 0 011.414 0L19.37 10.74a1 1 0 010 1.414l-4.636 4.636a1 1 0 01-1.414 0L8.684 12.16a1 1 0 010-1.414z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 12h5" />
+                </svg>
+                {isMirrored ? 'Mirrored' : 'Normal'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -792,78 +834,41 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
         </div>
 
         {/* Translation Logs list */}
-        <div className="bg-slate-900/40 border border-slate-850/80 rounded-3xl p-5 backdrop-blur-md shadow-xl flex-1 flex flex-col justify-between gap-4 relative overflow-hidden group">
-          <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between mb-4 z-10 relative">
-              <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">Translation History</h3>
+        <div className="bg-slate-900/40 border border-slate-900 rounded-2xl p-6 backdrop-blur-sm shadow-xl flex-1 flex flex-col justify-between gap-4">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-slate-200">Translation Logs</h3>
               {history.length > 0 && (
                 <button
                   type="button"
                   onClick={() => setHistory([])}
-                  className="text-[10px] text-slate-550 hover:text-rose-455 font-bold uppercase tracking-wide cursor-pointer transition-colors"
+                  className="text-xs text-slate-500 hover:text-slate-300 font-medium cursor-pointer"
                 >
-                  Clear Logs
+                  Clear History
                 </button>
               )}
             </div>
 
-            <div className="flex-1 max-h-[220px] overflow-y-auto pr-1 flex flex-col gap-3 scrollbar-thin scrollbar-thumb-slate-800 z-10 relative">
+            <div className="max-h-[180px] overflow-y-auto pr-1 flex flex-col gap-2 scrollbar-thin scrollbar-thumb-slate-800">
               {history.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center select-none">
-                  <svg className="h-8 w-8 text-slate-700 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                  <p className="text-xs text-slate-600 font-medium">No gestures translated in this session.</p>
-                </div>
+                <p className="text-xs text-slate-600 text-center py-8">No signs translated yet.</p>
               ) : (
-                <div className="relative border-l border-slate-850 ml-2.5 pl-5 flex flex-col gap-4">
-                  {history.map((item, idx) => (
-                    <div key={idx} className="relative flex items-center justify-between p-3.5 bg-slate-955/60 border border-slate-905 rounded-2xl hover:border-purple-500/20 hover:bg-slate-955 transition-all duration-300 group">
-                      
-                      <span className="absolute -left-[26px] top-[22px] h-2 w-2 rounded-full bg-slate-800 border-2 border-slate-955 group-hover:bg-purple-500 group-hover:border-purple-500/30 transition-all duration-300 ring-4 ring-slate-955"></span>
-
-                      <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-200 uppercase tracking-wide">{item.gesture}</span>
-                          <span className="text-[9px] font-mono text-slate-550 font-bold bg-slate-900 px-1.5 py-0.5 rounded">
-                            {item.timestamp}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[10px] text-slate-400 font-medium">{item.translated}</span>
-                          <span className="text-[8px] font-bold text-purple-400/80 bg-purple-500/5 px-1 py-0.2 rounded border border-purple-500/10">
-                            {item.langCode.split('-')[0].toUpperCase()}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(item.translated)
-                          }}
-                          className="text-slate-555 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-900 transition-all cursor-pointer"
-                          title="Copy translation text"
-                        >
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 00-2 2h2a2 2 0 002-2M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => speakText(item.translated, item.langCode, item.phonetic)}
-                          className="text-slate-555 hover:text-purple-400 p-1.5 rounded-lg hover:bg-purple-500/10 transition-all cursor-pointer"
-                          title="Speak translation"
-                        >
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                history.slice().reverse().map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 bg-slate-950/60 border border-slate-950 rounded-xl hover:border-slate-800/80 transition-all duration-200 group">
+                    <span className="text-sm font-medium text-slate-300">
+                      {item.gesture} {item.translated && <span className="text-purple-400 ml-2">({item.translated})</span>}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => speakText(item.translated || item.gesture, item.langCode)}
+                      className="text-slate-500 hover:text-purple-400 p-1 rounded-lg hover:bg-purple-500/10 opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                      </svg>
+                    </button>
+                  </div>
+                ))
               )}
             </div>
           </div>
