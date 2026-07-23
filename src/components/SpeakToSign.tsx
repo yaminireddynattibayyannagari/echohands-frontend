@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { FingerspellingSign } from './FingerspellingSign'
 
 // Interfaces for dictionary items
 interface SignItem {
@@ -9,6 +10,10 @@ interface SignItem {
     hindi: string
     telugu: string
     tamil: string
+    kannada?: string
+    bengali?: string
+    malayalam?: string
+    marathi?: string
   }
   transliterations?: string[]
 }
@@ -41,7 +46,11 @@ const defaultDictionary: Record<string, SignItem> = {
     translations: {
       hindi: 'क्या आपने दोपहर का भोजन किया?',
       telugu: 'మీరు భోజనం చేశారా?',
-      tamil: 'மதிய உணவு சாப்பிட்டீர்களா?'
+      tamil: 'மதிய உணவு சாப்பிட்டீர்களா?',
+      kannada: 'ಊಟ ಆಯ್ತಾ?',
+      bengali: 'দুপুরের খাবার খেয়েছেন?',
+      malayalam: 'ഉച്ചഭക്ഷണം കഴിച്ചോ?',
+      marathi: 'दुपारचे जेवण झाले का?'
     },
     transliterations: [
       'kya aapne dopahar ka bhojan kiya',
@@ -58,7 +67,12 @@ const defaultDictionary: Record<string, SignItem> = {
       'lunch tinnaara',
       'had you lounch',
       'had you lunch',
-      'had your lounch'
+      'had your lounch',
+      'oota aytha',
+      'oota aaytha',
+      'dupurer khabar kheyechhen',
+      'uchabhakshanam kazhicho',
+      'duparche jevan zhale ka'
     ]
   },
   'thank you': {
@@ -68,7 +82,11 @@ const defaultDictionary: Record<string, SignItem> = {
     translations: {
       hindi: 'धन्यवाद',
       telugu: 'ధన్యవాదాలు',
-      tamil: 'நன்றி'
+      tamil: 'நன்றி',
+      kannada: 'ಧನ್ಯವಾದಗಳು',
+      bengali: 'ধন্যবাদ',
+      malayalam: 'നന്ദി',
+      marathi: 'धन्यवाद'
     },
     transliterations: [
       'dhanyavaad',
@@ -77,7 +95,11 @@ const defaultDictionary: Record<string, SignItem> = {
       'dhanyavadalu',
       'nandri',
       'nandri hal',
-      'thankyou'
+      'thankyou',
+      'dhanyavadagalu',
+      'dhonnobad',
+      'nandi',
+      'dhanyavaad'
     ]
   },
   'how are you': {
@@ -87,7 +109,11 @@ const defaultDictionary: Record<string, SignItem> = {
     translations: {
       hindi: 'आप कैसे हैं?',
       telugu: 'మీరు ఎలా ఉన్నారు?',
-      tamil: 'நீங்கள் எப்படி இருக்கிறீர்கள்?'
+      tamil: 'நீங்கள் எப்படி இருக்கிறீர்கள்?',
+      kannada: 'ನೀವು ಹೇಗಿದ್ದೀರಿ?',
+      bengali: 'আপনি কেমন আছেন?',
+      malayalam: 'സുഖമാണോ?',
+      marathi: 'तुम्ही कसे आहात?'
     },
     transliterations: [
       'aap kaise ho',
@@ -101,7 +127,12 @@ const defaultDictionary: Record<string, SignItem> = {
       'neengal eppadi irukkireergal',
       'eppadi irukkireergal',
       'eppadi irukkingal',
-      'how are you'
+      'how are you',
+      'neevu hegiddiri',
+      'apni kemon achen',
+      'sukhamaano',
+      'sukhamano',
+      'tumhi kase aahat'
     ]
   },
   'hello': {
@@ -111,14 +142,21 @@ const defaultDictionary: Record<string, SignItem> = {
     translations: {
       hindi: 'नमस्ते',
       telugu: 'హలో / నమస్కారం',
-      tamil: 'வணக்கம்'
+      tamil: 'வணக்கம்',
+      kannada: 'ನಮಸ್ಕಾರ',
+      bengali: 'নমস্কার',
+      malayalam: 'നമസ്കാരം',
+      marathi: 'नमस्कार'
     },
     transliterations: [
       'namaste',
       'namaskar',
       'vanakkam',
       'namaskaram',
-      'hello'
+      'hello',
+      'namaskara',
+      'nomoshkar',
+      'namaskar'
     ]
   }
 }
@@ -153,7 +191,7 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
   })
 
   // Selected language state for translations
-  const [selectedLanguage, setSelectedLanguage] = useState<'english' | 'hindi' | 'telugu' | 'tamil'>('english')
+  const [selectedLanguage, setSelectedLanguage] = useState<'english' | 'hindi' | 'telugu' | 'tamil' | 'kannada' | 'bengali' | 'malayalam' | 'marathi'>('english')
 
   // Customizer panel active state
   const [showCustomizer, setShowCustomizer] = useState<boolean>(false)
@@ -161,6 +199,103 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
 
   // Ref for the output video element
   const videoPlayerRef = useRef<HTMLVideoElement | null>(null)
+
+  // Camera-based Video Recorder States
+  const [recordingWord, setRecordingWord] = useState<string | null>(null)
+  const [isRecording, setIsRecording] = useState<boolean>(false)
+  const [recCountdown, setRecCountdown] = useState<number>(0)
+  const recVideoRef = useRef<HTMLVideoElement | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const recordedChunksRef = useRef<Blob[]>([])
+  const recStreamRef = useRef<MediaStream | null>(null)
+
+  const startWebcamRecording = async (wordKey: string) => {
+    setRecordingWord(wordKey)
+    setRecCountdown(3)
+    recordedChunksRef.current = []
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360 } })
+      recStreamRef.current = stream
+      
+      setTimeout(() => {
+        if (recVideoRef.current) {
+          recVideoRef.current.srcObject = stream
+          recVideoRef.current.play().catch(() => {})
+        }
+      }, 100)
+
+      let count = 3
+      const countTimer = setInterval(() => {
+        count--
+        setRecCountdown(count)
+        if (count === 0) {
+          clearInterval(countTimer)
+          setIsRecording(true)
+          
+          const options = { mimeType: 'video/webm;codecs=vp8' }
+          let recorder: MediaRecorder
+          try {
+            recorder = new MediaRecorder(stream, options)
+          } catch {
+            recorder = new MediaRecorder(stream)
+          }
+          
+          mediaRecorderRef.current = recorder
+          
+          recorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) {
+              recordedChunksRef.current.push(e.data)
+            }
+          }
+
+          recorder.onstop = () => {
+            const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' })
+            const reader = new FileReader()
+            reader.readAsDataURL(blob)
+            reader.onloadend = () => {
+              const base64data = reader.result as string
+              updateCustomVideo(wordKey, base64data)
+              stopWebcamStream()
+            }
+          }
+
+          recorder.start()
+
+          setTimeout(() => {
+            if (recorder && recorder.state !== 'inactive') {
+              recorder.stop()
+            }
+            setIsRecording(false)
+          }, 3000)
+        }
+      }, 1000)
+
+    } catch (err) {
+      console.error('Failed to access webcam for recording:', err)
+      alert('Could not access camera for recording. Please check permissions.')
+      setRecordingWord(null)
+    }
+  }
+
+  const stopWebcamStream = () => {
+    if (recStreamRef.current) {
+      recStreamRef.current.getTracks().forEach(track => track.stop())
+      recStreamRef.current = null
+    }
+    setRecordingWord(null)
+    setIsRecording(false)
+    setRecCountdown(0)
+  }
+
+  // Cleanup recording tracks on unmount
+  useEffect(() => {
+    return () => {
+      if (recStreamRef.current) {
+        recStreamRef.current.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [])
 
   // Helper helper to get active video source
   const getVideoUrl = (key: string) => {
@@ -191,6 +326,10 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
     if (selectedLanguage === 'hindi') langCode = 'hi-IN'
     else if (selectedLanguage === 'telugu') langCode = 'te-IN'
     else if (selectedLanguage === 'tamil') langCode = 'ta-IN'
+    else if (selectedLanguage === 'kannada') langCode = 'kn-IN'
+    else if (selectedLanguage === 'bengali') langCode = 'bn-IN'
+    else if (selectedLanguage === 'malayalam') langCode = 'ml-IN'
+    else if (selectedLanguage === 'marathi') langCode = 'mr-IN'
     speakText(textToSpeak, langCode)
   }
 
@@ -224,6 +363,22 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
           setSelectedLanguage('tamil')
           return
         }
+        if (item.translations.kannada && getNormalizedKey(item.translations.kannada) === normalizedInput) {
+          setSelectedLanguage('kannada')
+          return
+        }
+        if (item.translations.bengali && getNormalizedKey(item.translations.bengali) === normalizedInput) {
+          setSelectedLanguage('bengali')
+          return
+        }
+        if (item.translations.malayalam && getNormalizedKey(item.translations.malayalam) === normalizedInput) {
+          setSelectedLanguage('malayalam')
+          return
+        }
+        if (item.translations.marathi && getNormalizedKey(item.translations.marathi) === normalizedInput) {
+          setSelectedLanguage('marathi')
+          return
+        }
       }
 
       if (item.transliterations) {
@@ -231,20 +386,32 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
           const hindiWords = ['namaste', 'namaskar', 'kya', 'aapne', 'dopahar', 'bhojan', 'kiya', 'khana', 'kha', 'liya', 'khaliya', 'dhanyavaad', 'dhanyavad', 'shukriya', 'aap', 'kaise', 'ho', 'hain']
           const teluguWords = ['namaskaram', 'meeru', 'bhojanam', 'chesaara', 'chesara', 'thinnava', 'tinnaara', 'dhanyavadalu', 'ela', 'unnaru', 'unnaaru']
           const tamilWords = ['vanakkam', 'sappittirgala', 'saapiteergala', 'nandri', 'neengal', 'eppadi', 'irukkireergal', 'irukkingal']
+          const kannadaWords = ['namaskara', 'oota', 'aaytha', 'aytha', 'dhanyavadagalu', 'neevu', 'hegiddiri', 'hegidirga']
+          const bengaliWords = ['nomoshkar', 'dhonnobad', 'kemon', 'achen', 'dupurer', 'khabar', 'kheyechhen']
+          const malayalamWords = ['namaskaram', 'nandi', 'sukhamaano', 'sukhamano', 'ningalkku', 'uchabhakshanam', 'kazhicho']
+          const marathiWords = ['namaskar', 'dhanyavaad', 'kase', 'aahat', 'jevan', 'zhale', 'ka', 'duparche']
           
           const inputWords = normalizedInput.split(' ')
           const hiCount = inputWords.filter(w => hindiWords.includes(w)).length
           const teCount = inputWords.filter(w => teluguWords.includes(w)).length
           const taCount = inputWords.filter(w => tamilWords.includes(w)).length
+          const knCount = inputWords.filter(w => kannadaWords.includes(w)).length
+          const bnCount = inputWords.filter(w => bengaliWords.includes(w)).length
+          const mlCount = inputWords.filter(w => malayalamWords.includes(w)).length
+          const mrCount = inputWords.filter(w => marathiWords.includes(w)).length
 
-          if (hiCount > teCount && hiCount > taCount) {
-            setSelectedLanguage('hindi')
-            return
-          } else if (teCount > hiCount && teCount > taCount) {
-            setSelectedLanguage('telugu')
-            return
-          } else if (taCount > hiCount && taCount > teCount) {
-            setSelectedLanguage('tamil')
+          const counts = [
+            { lang: 'hindi', count: hiCount },
+            { lang: 'telugu', count: teCount },
+            { lang: 'tamil', count: taCount },
+            { lang: 'kannada', count: knCount },
+            { lang: 'bengali', count: bnCount },
+            { lang: 'malayalam', count: mlCount },
+            { lang: 'marathi', count: mrCount }
+          ]
+          const maxObj = counts.reduce((max, cur) => cur.count > max.count ? cur : max, { lang: '', count: 0 })
+          if (maxObj.count > 0) {
+            setSelectedLanguage(maxObj.lang as any)
             return
           }
 
@@ -258,6 +425,22 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
           }
           if (hindiWords.some(w => normalizedInput.includes(w))) {
             setSelectedLanguage('hindi')
+            return
+          }
+          if (kannadaWords.some(w => normalizedInput.includes(w))) {
+            setSelectedLanguage('kannada')
+            return
+          }
+          if (bengaliWords.some(w => normalizedInput.includes(w))) {
+            setSelectedLanguage('bengali')
+            return
+          }
+          if (malayalamWords.some(w => normalizedInput.includes(w))) {
+            setSelectedLanguage('malayalam')
+            return
+          }
+          if (marathiWords.some(w => normalizedInput.includes(w))) {
+            setSelectedLanguage('marathi')
             return
           }
         }
@@ -390,6 +573,32 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    let audioContext: AudioContext | null = null
+    let analyser: AnalyserNode | null = null
+    let source: MediaStreamAudioSourceNode | null = null
+    let stream: MediaStream | null = null
+    let dataArray = new Uint8Array(0)
+
+    // Request actual mic stream to show live audio frequency data
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then((micStream) => {
+        stream = micStream
+        const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext
+        if (!AudioCtxClass) return
+
+        audioContext = new AudioCtxClass()
+        analyser = audioContext.createAnalyser()
+        analyser.fftSize = 64
+        source = audioContext.createMediaStreamSource(micStream)
+        source.connect(analyser)
+
+        const bufferLength = analyser.frequencyBinCount
+        dataArray = new Uint8Array(bufferLength)
+      })
+      .catch((err) => {
+        console.warn('Real microphone analysis blocked, falling back to simulation:', err)
+      })
+
     let frame = 0
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -404,13 +613,31 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
       const spacing = canvas.width / numLines
       const centerY = canvas.height / 2
 
+      // Check if real microphone frequency data is available
+      let hasRealData = false
+      if (analyser && dataArray.length > 0) {
+        analyser.getByteFrequencyData(dataArray)
+        hasRealData = true
+      }
+
       for (let i = 0; i < numLines; i++) {
         const x = i * spacing + spacing / 2
         const distanceToCenter = Math.abs(i - numLines / 2) / (numLines / 2)
         const multiplier = Math.max(0.1, 1 - distanceToCenter)
-        const wave = Math.sin(frame * 0.15 + i * 0.25) + Math.cos(frame * 0.08 + i * 0.45)
-        const amp = wave * 30 * multiplier * (0.3 + Math.random() * 0.7)
-        const height = Math.max(5, Math.abs(amp))
+        
+        let amplitude = 0
+        if (hasRealData) {
+          // Map index to frequency array index
+          const dataIdx = Math.floor((i / numLines) * dataArray.length)
+          const val = dataArray[dataIdx] || 0
+          amplitude = (val / 255) * 60 * multiplier
+        } else {
+          // Simulation fallback
+          const wave = Math.sin(frame * 0.15 + i * 0.25) + Math.cos(frame * 0.08 + i * 0.45)
+          amplitude = wave * 25 * multiplier * (0.3 + Math.random() * 0.7)
+        }
+
+        const height = Math.max(4, Math.abs(amplitude))
 
         const gradient = ctx.createLinearGradient(x, centerY - height, x, centerY + height)
         gradient.addColorStop(0, '#a855f7')
@@ -425,8 +652,8 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
       }
 
       ctx.fillStyle = '#a855f7'
-      ctx.font = 'bold 10px sans-serif'
-      ctx.fillText('RECORDING AUDIO LIVE...', 20, 30)
+      ctx.font = 'bold 9px sans-serif'
+      ctx.fillText(hasRealData ? 'LIVE AUDIO SPECTRUM ACTIVE...' : 'SIMULATING AUDIO SPECTRUM...', 20, 26)
 
       frame++
       animationRef.current = requestAnimationFrame(draw)
@@ -435,6 +662,12 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
     draw()
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current)
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop())
+      }
+      if (audioContext) {
+        audioContext.close().catch(() => {})
+      }
     }
   }, [micActive])
 
@@ -502,6 +735,14 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
       recognition.lang = 'te-IN'
     } else if (selectedLanguage === 'tamil') {
       recognition.lang = 'ta-IN'
+    } else if (selectedLanguage === 'kannada') {
+      recognition.lang = 'kn-IN'
+    } else if (selectedLanguage === 'bengali') {
+      recognition.lang = 'bn-IN'
+    } else if (selectedLanguage === 'malayalam') {
+      recognition.lang = 'ml-IN'
+    } else if (selectedLanguage === 'marathi') {
+      recognition.lang = 'mr-IN'
     } else {
       recognition.lang = 'en-IN'
     }
@@ -622,9 +863,10 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
       const letter = currentWord?.[spellingIndex]?.toUpperCase()
       return (
         <div className="flex flex-col items-center justify-center p-4 text-center animate-in fade-in duration-300 w-full">
-          <div className="h-28 w-28 rounded-2xl bg-purple-500/10 border border-purple-500/35 flex items-center justify-center relative overflow-hidden group shadow-lg shadow-purple-500/10 mb-4">
-            <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(168,85,247,0.02)_1px,transparent_1px)] bg-[size:100%_4px]" />
-            <span className="text-5xl font-extrabold text-purple-400 font-mono tracking-tighter">
+          <div className="h-32 w-32 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex flex-col items-center justify-center relative overflow-hidden group shadow-lg shadow-purple-500/10 mb-4 p-2.5">
+            <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(168,85,247,0.02)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none" />
+            <FingerspellingSign letter={letter} className="h-14 w-14 mb-1 text-purple-400 group-hover:scale-105 transition-transform duration-300" />
+            <span className="text-2xl font-extrabold text-purple-400 font-mono tracking-tighter">
               {letter}
             </span>
             {isPlaying && (
@@ -876,13 +1118,17 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
                   <span className="text-[10px] text-slate-500 font-bold uppercase">Language:</span>
                   <select
                     value={selectedLanguage}
-                    onChange={(e) => setSelectedLanguage(e.target.value as 'english' | 'hindi' | 'telugu' | 'tamil')}
-                    className="bg-slate-950 border border-slate-850 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-purple-500 hover:border-purple-500/50 hover:text-purple-400 transition-all duration-200 cursor-pointer"
+                    onChange={(e) => setSelectedLanguage(e.target.value as any)}
+                    className="bg-slate-955 border border-slate-850 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-purple-500 hover:border-purple-500/50 hover:text-purple-400 transition-all duration-200 cursor-pointer"
                   >
                     <option value="english" className="bg-slate-900 text-slate-100">English</option>
                     <option value="hindi" className="bg-slate-900 text-slate-100">Hindi (हिंदी)</option>
                     <option value="telugu" className="bg-slate-900 text-slate-100">Telugu (తెలుగు)</option>
                     <option value="tamil" className="bg-slate-900 text-slate-100">Tamil (தமிழ்)</option>
+                    <option value="kannada" className="bg-slate-900 text-slate-100">Kannada (ಕನ್ನಡ)</option>
+                    <option value="bengali" className="bg-slate-900 text-slate-100">Bengali (বাংলা)</option>
+                    <option value="malayalam" className="bg-slate-900 text-slate-100">Malayalam (മലയാളം)</option>
+                    <option value="marathi" className="bg-slate-900 text-slate-100">Marathi (मराठी)</option>
                   </select>
                 </div>
 
@@ -920,7 +1166,7 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
                   {Object.entries(defaultDictionary).map(([key, item]) => {
                     const isCustom = !!customVideos[key]
                     return (
-                      <div key={key} className="bg-slate-900/20 border border-slate-900 p-3 rounded-xl flex flex-col gap-2">
+                      <div key={key} className="bg-slate-900/20 border border-slate-900 p-3 rounded-xl flex flex-col gap-2 relative">
                         <div className="flex items-center justify-between">
                           <div>
                             <span className="text-xs font-bold text-slate-200 uppercase tracking-wide">{key}</span>
@@ -931,33 +1177,73 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-1">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] text-slate-500 font-bold uppercase">Upload local file:</span>
-                            <input
-                              type="file"
-                              accept="video/*"
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                                const file = e.target.files?.[0]
-                                if (file) {
-                                  const url = URL.createObjectURL(file)
-                                  updateCustomVideo(key, url)
-                                }
-                              }}
-                              className="block w-full text-[9px] text-slate-455 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[9px] file:font-semibold file:bg-purple-600/15 file:text-purple-400 hover:file:bg-purple-600/20 cursor-pointer"
+                        {recordingWord === key ? (
+                          <div className="mt-2 border border-purple-500/35 bg-slate-950 rounded-xl p-2 flex flex-col items-center gap-2 relative overflow-hidden">
+                            <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10">
+                              <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                              <span className="text-[8px] font-mono font-bold text-rose-400 uppercase tracking-wider">
+                                {isRecording ? 'Recording Live (3s)...' : `Countdown: ${recCountdown}s`}
+                              </span>
+                            </div>
+                            
+                            <video
+                              ref={recVideoRef}
+                              muted
+                              playsInline
+                              className="aspect-video w-full max-w-[280px] bg-black rounded-lg border border-slate-800 object-cover transform scale-x-[-1]"
                             />
-                          </div>
 
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] text-slate-500 font-bold uppercase">Or paste video URL:</span>
-                            <div className="flex gap-1.5">
+                            <button
+                              type="button"
+                              onClick={stopWebcamStream}
+                              className="px-2.5 py-1 bg-slate-900 hover:bg-slate-850 text-[9px] font-bold text-slate-400 hover:text-slate-200 rounded-lg border border-slate-800 cursor-pointer"
+                            >
+                              Cancel Record
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-1 items-end">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[9px] text-slate-500 font-bold uppercase">Upload file:</span>
                               <input
-                                type="text"
-                                placeholder="Paste MP4 URL"
-                                value={customVideos[key] && !customVideos[key].startsWith('blob:') ? customVideos[key] : ''}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCustomVideo(key, e.target.value)}
-                                className="bg-slate-955 border border-slate-850 rounded-lg px-2.5 py-1 text-[9px] text-slate-305 focus:outline-none focus:border-purple-500 flex-1 min-w-0"
+                                type="file"
+                                accept="video/*"
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                  const file = e.target.files?.[0]
+                                  if (file) {
+                                    const url = URL.createObjectURL(file)
+                                    updateCustomVideo(key, url)
+                                  }
+                                }}
+                                className="block w-full text-[9px] text-slate-455 file:mr-1.5 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[9px] file:font-semibold file:bg-purple-650/15 file:text-purple-400 hover:file:bg-purple-600/20 cursor-pointer"
                               />
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[9px] text-slate-500 font-bold uppercase">Paste video URL:</span>
+                              <div className="flex gap-1.5">
+                                <input
+                                  type="text"
+                                  placeholder="Paste MP4 URL"
+                                  value={customVideos[key] && !customVideos[key].startsWith('blob:') && !customVideos[key].startsWith('data:') ? customVideos[key] : ''}
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCustomVideo(key, e.target.value)}
+                                  className="bg-slate-955 border border-slate-850 rounded-lg px-2.5 py-1 text-[9px] text-slate-305 focus:outline-none focus:border-purple-500 flex-1 min-w-0"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 justify-end">
+                              <button
+                                type="button"
+                                onClick={() => startWebcamRecording(key)}
+                                className="bg-purple-655/10 hover:bg-purple-600 hover:text-white border border-purple-500/25 hover:border-transparent text-purple-400 text-[9px] font-bold py-1.5 px-2.5 rounded-lg flex items-center gap-1 cursor-pointer transition-all duration-200"
+                              >
+                                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                Webcam Rec
+                              </button>
+
                               {isCustom && (
                                 <button
                                   type="button"
@@ -967,14 +1253,14 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
                                     setCustomVideos(updated)
                                     localStorage.setItem('echohands_custom_videos', JSON.stringify(updated))
                                   }}
-                                  className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-455 border border-rose-500/20 text-[9px] font-bold px-2 rounded-lg cursor-pointer"
+                                  className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-455 border border-rose-500/20 text-[9px] font-bold py-1.5 px-2.5 rounded-lg cursor-pointer transition-all duration-200"
                                 >
                                   Reset
                                 </button>
                               )}
                             </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     )
                   })}
@@ -1058,6 +1344,10 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
                 if (item.translations.hindi.includes(query)) return true
                 if (item.translations.telugu.includes(query)) return true
                 if (item.translations.tamil.includes(query)) return true
+                if (item.translations.kannada?.includes(query)) return true
+                if (item.translations.bengali?.includes(query)) return true
+                if (item.translations.malayalam?.includes(query)) return true
+                if (item.translations.marathi?.includes(query)) return true
               }
               if (item.transliterations) {
                 if (item.transliterations.some(t => t.toLowerCase().includes(query))) return true
@@ -1079,6 +1369,10 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
                     if (item.translations.hindi.includes(query)) return true
                     if (item.translations.telugu.includes(query)) return true
                     if (item.translations.tamil.includes(query)) return true
+                    if (item.translations.kannada?.includes(query)) return true
+                    if (item.translations.bengali?.includes(query)) return true
+                    if (item.translations.malayalam?.includes(query)) return true
+                    if (item.translations.marathi?.includes(query)) return true
                   }
                   if (item.transliterations) {
                     if (item.transliterations.some(t => t.toLowerCase().includes(query))) return true
@@ -1130,6 +1424,10 @@ export const SpeakToSign: React.FC<SpeakToSignProps> = ({ speakText }) => {
                             <span className="bg-slate-950/60 px-1.5 py-0.5 rounded border border-slate-900">HN: {item.translations.hindi}</span>
                             <span className="bg-slate-950/60 px-1.5 py-0.5 rounded border border-slate-900">TL: {item.translations.telugu}</span>
                             <span className="bg-slate-950/60 px-1.5 py-0.5 rounded border border-slate-900">TM: {item.translations.tamil}</span>
+                            {item.translations.kannada && <span className="bg-slate-950/60 px-1.5 py-0.5 rounded border border-slate-900">KN: {item.translations.kannada}</span>}
+                            {item.translations.bengali && <span className="bg-slate-950/60 px-1.5 py-0.5 rounded border border-slate-900">BN: {item.translations.bengali}</span>}
+                            {item.translations.malayalam && <span className="bg-slate-950/60 px-1.5 py-0.5 rounded border border-slate-900">ML: {item.translations.malayalam}</span>}
+                            {item.translations.marathi && <span className="bg-slate-950/60 px-1.5 py-0.5 rounded border border-slate-900">MR: {item.translations.marathi}</span>}
                           </div>
                         )}
                       </div>

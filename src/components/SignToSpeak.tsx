@@ -59,6 +59,14 @@ const gestureDictionary: Record<
     teluguPhonetic: string
     tamil: string
     tamilPhonetic: string
+    kannada: string
+    kannadaPhonetic: string
+    bengali: string
+    bengaliPhonetic: string
+    malayalam: string
+    malayalamPhonetic: string
+    marathi: string
+    marathiPhonetic: string
   }
 > = {
   'Hello': {
@@ -68,7 +76,15 @@ const gestureDictionary: Record<
     telugu: 'నమస్కారం',
     teluguPhonetic: 'namaskaaram',
     tamil: 'வணக்கம்',
-    tamilPhonetic: 'vanakkam'
+    tamilPhonetic: 'vanakkam',
+    kannada: 'ನಮಸ್ಕಾರ',
+    kannadaPhonetic: 'namaskara',
+    bengali: 'নমস্কার',
+    bengaliPhonetic: 'nomoshkar',
+    malayalam: 'നമസ്കാരം',
+    malayalamPhonetic: 'namaskaram',
+    marathi: 'नमस्कार',
+    marathiPhonetic: 'namaskar'
   },
   'Yes': {
     label: 'Yes',
@@ -77,7 +93,15 @@ const gestureDictionary: Record<
     telugu: 'అవును',
     teluguPhonetic: 'avunu',
     tamil: 'ஆம்',
-    tamilPhonetic: 'aam'
+    tamilPhonetic: 'aam',
+    kannada: 'ಹೌದು',
+    kannadaPhonetic: 'haudu',
+    bengali: 'হ্যাঁ',
+    bengaliPhonetic: 'ha',
+    malayalam: 'അതെ',
+    malayalamPhonetic: 'athe',
+    marathi: 'हो',
+    marathiPhonetic: 'ho'
   },
   'Thank You': {
     label: 'Thank You',
@@ -86,16 +110,32 @@ const gestureDictionary: Record<
     telugu: 'ధన్యవాదాలు',
     teluguPhonetic: 'dhanyavaadaalu',
     tamil: 'நன்றி',
-    tamilPhonetic: 'nandri'
+    tamilPhonetic: 'nandri',
+    kannada: 'ಧನ್ಯವಾದಗಳು',
+    kannadaPhonetic: 'dhanyavadagalu',
+    bengali: 'ধন্যবাদ',
+    bengaliPhonetic: 'dhonnobad',
+    malayalam: 'നന്ദി',
+    malayalamPhonetic: 'nandi',
+    marathi: 'धन्यवाद',
+    marathiPhonetic: 'dhanyavaad'
   },
   'Help': {
     label: 'Help',
     hindi: 'मदद',
     hindiPhonetic: 'madad',
-    telugu: 'సహాయం',
+    telugu: 'ಸഹాయం',
     teluguPhonetic: 'sahaayam',
     tamil: 'உதவி',
-    tamilPhonetic: 'udhavi'
+    tamilPhonetic: 'udhavi',
+    kannada: 'ಸಹಾಯ',
+    kannadaPhonetic: 'sahaya',
+    bengali: 'সাহায্য',
+    bengaliPhonetic: 'sahajjo',
+    malayalam: 'സഹായം',
+    malayalamPhonetic: 'sahayam',
+    marathi: 'मदत',
+    marathiPhonetic: 'madat'
   },
   'Stop': {
     label: 'Stop',
@@ -104,7 +144,15 @@ const gestureDictionary: Record<
     telugu: 'ఆగండి',
     teluguPhonetic: 'aagandi',
     tamil: 'நில்லுங்கள்',
-    tamilPhonetic: 'nillungal'
+    tamilPhonetic: 'nillungal',
+    kannada: 'ನಿಲ್ಲಿಸಿ',
+    kannadaPhonetic: 'nillisi',
+    bengali: 'থামুন',
+    bengaliPhonetic: 'thamun',
+    malayalam: 'നിർത്തൂ',
+    malayalamPhonetic: 'nirthu',
+    marathi: 'थांबा',
+    marathiPhonetic: 'thamba'
   },
   'Idle': {
     label: 'Idle',
@@ -112,12 +160,19 @@ const gestureDictionary: Record<
     hindiPhonetic: 'nishkriya',
     telugu: 'నిశ్చలంగా',
     teluguPhonetic: 'nishchalangaa',
-    tamil: 'செயலற்றது',
-    tamilPhonetic: 'seyalatradhu'
+    tamil: 'செயലற்றது',
+    tamilPhonetic: 'seyalatradhu',
+    kannada: 'ನಿಷ್ಕ್ರಿಯ',
+    kannadaPhonetic: 'nishkriya',
+    bengali: 'নিষ্ক্রিয়',
+    bengaliPhonetic: 'nishkriyo',
+    malayalam: 'നിഷ്ക്രിയം',
+    malayalamPhonetic: 'nishkriyam',
+    marathi: 'निष्क्रिय',
+    marathiPhonetic: 'nishkriya'
   }
 }
 
-// Gestures guide metadata for display assistant
 const GUIDE_GESTURES = [
   {
     name: 'Hello',
@@ -183,12 +238,19 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
   const [detectedText, setDetectedText] = useState<string>('Idle')
   const [confidence, setConfidence] = useState<number>(100.0)
   const [fps, setFps] = useState<number>(30)
-  const [history, setHistory] = useState<HistoryItem[]>([])
+  const [history, setHistory] = useState<HistoryItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('echohands_history')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [isMirrored, setIsMirrored] = useState<boolean>(true)
   
   // Selected translation language
-  const [selectedLanguage, setSelectedLanguage] = useState<'english' | 'hindi' | 'telugu' | 'tamil'>('english')
+  const [selectedLanguage, setSelectedLanguage] = useState<'english' | 'hindi' | 'telugu' | 'tamil' | 'kannada' | 'bengali' | 'malayalam' | 'marathi'>('english')
 
   // Helper to translate detected gesture
   const getTranslationInfo = useCallback((word: string) => {
@@ -199,7 +261,15 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
       telugu: word,
       teluguPhonetic: word,
       tamil: word,
-      tamilPhonetic: word
+      tamilPhonetic: word,
+      kannada: word,
+      kannadaPhonetic: word,
+      bengali: word,
+      bengaliPhonetic: word,
+      malayalam: word,
+      malayalamPhonetic: word,
+      marathi: word,
+      marathiPhonetic: word
     }
     
     if (selectedLanguage === 'english') {
@@ -210,6 +280,14 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
       return { text: dict.telugu, phonetic: dict.teluguPhonetic, langCode: 'te-IN' }
     } else if (selectedLanguage === 'tamil') {
       return { text: dict.tamil, phonetic: dict.tamilPhonetic, langCode: 'ta-IN' }
+    } else if (selectedLanguage === 'kannada') {
+      return { text: dict.kannada, phonetic: dict.kannadaPhonetic, langCode: 'kn-IN' }
+    } else if (selectedLanguage === 'bengali') {
+      return { text: dict.bengali, phonetic: dict.bengaliPhonetic, langCode: 'bn-IN' }
+    } else if (selectedLanguage === 'malayalam') {
+      return { text: dict.malayalam, phonetic: dict.malayalamPhonetic, langCode: 'ml-IN' }
+    } else if (selectedLanguage === 'marathi') {
+      return { text: dict.marathi, phonetic: dict.marathiPhonetic, langCode: 'mr-IN' }
     }
     return { text: word, phonetic: '', langCode: 'en-US' }
   }, [selectedLanguage])
@@ -300,7 +378,13 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
           timestamp: timeString,
           phonetic: translation.phonetic
         }
-        return [newItem, ...prev]
+        const updated = [newItem, ...prev]
+        try {
+          localStorage.setItem('echohands_history', JSON.stringify(updated))
+        } catch (e) {
+          console.error('Failed to save history:', e)
+        }
+        return updated
       })
       prevWordRef.current = detectedText
     }
@@ -407,6 +491,61 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
       ctx.clearRect(0, 0, canvasElement.width, canvasElement.height)
       ctx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height)
 
+      // --- Futuristic HUD Overlay Drawing ---
+      // 1. Draw scanning focus brackets
+      const pad = 24
+      const len = 20
+      ctx.strokeStyle = 'rgba(168, 85, 247, 0.65)' // Purple neon
+      ctx.lineWidth = 3
+      ctx.shadowBlur = 0
+      
+      // Top-Left Bracket
+      ctx.beginPath()
+      ctx.moveTo(pad, pad + len)
+      ctx.lineTo(pad, pad)
+      ctx.lineTo(pad + len, pad)
+      ctx.stroke()
+
+      // Top-Right Bracket
+      ctx.beginPath()
+      ctx.moveTo(canvasElement.width - pad, pad + len)
+      ctx.lineTo(canvasElement.width - pad, pad)
+      ctx.lineTo(canvasElement.width - pad - len, pad)
+      ctx.stroke()
+
+      // Bottom-Left Bracket
+      ctx.beginPath()
+      ctx.moveTo(pad, canvasElement.height - pad - len)
+      ctx.lineTo(pad, canvasElement.height - pad)
+      ctx.lineTo(pad + len, canvasElement.height - pad)
+      ctx.stroke()
+
+      // Bottom-Right Bracket
+      ctx.beginPath()
+      ctx.moveTo(canvasElement.width - pad, canvasElement.height - pad - len)
+      ctx.lineTo(canvasElement.width - pad, canvasElement.height - pad)
+      ctx.lineTo(canvasElement.width - pad - len, canvasElement.height - pad)
+      ctx.stroke()
+
+      // 2. Scanline
+      const scanlineY = (performance.now() / 12) % canvasElement.height
+      ctx.strokeStyle = 'rgba(168, 85, 247, 0.08)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(0, scanlineY)
+      ctx.lineTo(canvasElement.width, scanlineY)
+      ctx.stroke()
+
+      // 3. Grid dots
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.02)'
+      for (let x = 40; x < canvasElement.width; x += 40) {
+        for (let y = 40; y < canvasElement.height; y += 40) {
+          ctx.beginPath()
+          ctx.arc(x, y, 1, 0, 2 * Math.PI)
+          ctx.fill()
+        }
+      }
+
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         const landmarks = results.multiHandLandmarks[0]
 
@@ -414,11 +553,16 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
         setDetectedText(gesture.word)
         setConfidence(gesture.conf)
 
-        // Draw connections
-        ctx.strokeStyle = '#a855f7' // Purple-500
+        // Draw connections with neon gradient
+        const connGradient = ctx.createLinearGradient(0, 0, canvasElement.width, canvasElement.height)
+        connGradient.addColorStop(0, '#c084fc') // light purple
+        connGradient.addColorStop(0.5, '#818cf8') // light indigo
+        connGradient.addColorStop(1, '#ec4899') // pink
+        
+        ctx.strokeStyle = connGradient
         ctx.lineWidth = 4
-        ctx.shadowBlur = 12
-        ctx.shadowColor = 'rgba(168, 85, 247, 0.6)'
+        ctx.shadowBlur = 10
+        ctx.shadowColor = 'rgba(168, 85, 247, 0.5)'
 
         const connections = [
           [0, 1], [1, 2], [2, 3], [3, 4], // Thumb
@@ -436,13 +580,24 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
           ctx.stroke()
         })
 
-        // Draw joints
-        ctx.fillStyle = '#10b981' // Emerald-500
-        ctx.shadowBlur = 10
-        ctx.shadowColor = 'rgba(16, 185, 129, 0.8)'
+        // Draw joints with outer glowing beads
         landmarks.forEach((landmark) => {
+          const cx = landmark.x * canvasElement.width
+          const cy = landmark.y * canvasElement.height
+
+          // Outer glowing bead ring
           ctx.beginPath()
-          ctx.arc(landmark.x * canvasElement.width, landmark.y * canvasElement.height, 6, 0, 2 * Math.PI)
+          ctx.arc(cx, cy, 9, 0, 2 * Math.PI)
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.15)'
+          ctx.shadowBlur = 0
+          ctx.fill()
+
+          // Inner solid bead
+          ctx.beginPath()
+          ctx.arc(cx, cy, 4, 0, 2 * Math.PI)
+          ctx.fillStyle = '#34d399' // Light Emerald
+          ctx.shadowBlur = 6
+          ctx.shadowColor = 'rgba(52, 211, 153, 0.8)'
           ctx.fill()
         })
       } else {
@@ -736,13 +891,17 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
                 <span className="text-[10px] text-slate-500 font-bold uppercase">Lang:</span>
                 <select
                   value={selectedLanguage}
-                  onChange={(e) => setSelectedLanguage(e.target.value as 'english' | 'hindi' | 'telugu' | 'tamil')}
+                  onChange={(e) => setSelectedLanguage(e.target.value as any)}
                   className="bg-transparent border-0 text-[10px] text-slate-350 font-bold focus:outline-none cursor-pointer hover:text-purple-400 transition-colors duration-200"
                 >
                   <option value="english" className="bg-slate-900 text-slate-100">English</option>
                   <option value="hindi" className="bg-slate-900 text-slate-100">Hindi (हिंदी)</option>
                   <option value="telugu" className="bg-slate-900 text-slate-100">Telugu (తెలుగు)</option>
                   <option value="tamil" className="bg-slate-900 text-slate-100">Tamil (தமிழ்)</option>
+                  <option value="kannada" className="bg-slate-900 text-slate-100">Kannada (ಕನ್ನಡ)</option>
+                  <option value="bengali" className="bg-slate-900 text-slate-100">Bengali (বাংলা)</option>
+                  <option value="malayalam" className="bg-slate-900 text-slate-100">Malayalam (മലയാളം)</option>
+                  <option value="marathi" className="bg-slate-900 text-slate-100">Marathi (मराठी)</option>
                 </select>
               </div>
             </div>
@@ -841,7 +1000,12 @@ export const SignToSpeak: React.FC<SignToSpeakProps> = ({
               {history.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setHistory([])}
+                  onClick={() => {
+                    setHistory([])
+                    try {
+                      localStorage.removeItem('echohands_history')
+                    } catch {}
+                  }}
                   className="text-xs text-slate-500 hover:text-slate-300 font-medium cursor-pointer"
                 >
                   Clear History

@@ -3,6 +3,7 @@ import Header from './components/Header'
 import PhaseToggle, { type AppPhase } from './components/PhaseToggle'
 import SignToSpeak from './components/SignToSpeak'
 import SpeakToSign from './components/SpeakToSign'
+import PracticeMode from './components/PracticeMode'
 
 function App() {
   const [currentPhase, setCurrentPhase] = useState<AppPhase>('SIGN_TO_SPEAK')
@@ -88,9 +89,9 @@ function App() {
     }
   }
 
-  // Toggle phase switcher function
-  const handlePhaseToggle = () => {
-    setCurrentPhase(prev => prev === 'SIGN_TO_SPEAK' ? 'SPEAK_TO_SIGN' : 'SIGN_TO_SPEAK')
+  // Phase switcher function
+  const handlePhaseSelect = (phase: AppPhase) => {
+    setCurrentPhase(phase)
   }
 
   return (
@@ -108,12 +109,12 @@ function App() {
         <Header />
 
         {/* Phase State Toggle Component */}
-        <PhaseToggle currentPhase={currentPhase} onToggle={handlePhaseToggle} />
+        <PhaseToggle currentPhase={currentPhase} onToggle={handlePhaseSelect} />
 
         {/* Core Content Container with Transition Effects */}
         <main className="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pb-16">
           <div className="transition-all duration-300 ease-in-out transform">
-            {currentPhase === 'SIGN_TO_SPEAK' ? (
+            {currentPhase === 'SIGN_TO_SPEAK' && (
               <div className="animate-in fade-in slide-in-from-bottom-6 duration-500">
                 <SignToSpeak
                   voices={voices}
@@ -124,9 +125,15 @@ function App() {
                   speakText={speakText}
                 />
               </div>
-            ) : (
+            )}
+            {currentPhase === 'SPEAK_TO_SIGN' && (
               <div className="animate-in fade-in slide-in-from-bottom-6 duration-500">
                 <SpeakToSign speakText={speakText} />
+              </div>
+            )}
+            {currentPhase === 'PRACTICE_MODE' && (
+              <div className="animate-in fade-in slide-in-from-bottom-6 duration-500">
+                <PracticeMode speakText={speakText} />
               </div>
             )}
           </div>
